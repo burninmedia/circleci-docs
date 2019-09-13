@@ -161,10 +161,19 @@ for all variables that start with `:`.
 ```bash
 export CIRCLE_TOKEN=':your_token'
 
-curl https://circleci.com/api/v1.1/project/:vcs-type/:username/:project/$build_number/artifacts?circle-token=$CIRCLE_TOKEN \
-   | grep -o 'https://[^"]*' \
-   | sed -e "s/$/?circle-token=$CIRCLE_TOKEN/" \
-   | wget -v -i -
+echo $(https://circleci.com/api/v1.1/project/:vcs-type/:username/:project/$build_number/artifacts?circle-token=$CIRCLE_TOKEN) > ./artifact_json
+for ((i = 0 ; i <= $(jq -c '.[].url ' ./artifact_json|wc -l) ; i++));
+do
+	path=$(jq -c ".[$i].path" ./artifact_json|tr -d '"');
+	url=$(jq -c ".[$i].url" ./artifact_json|tr -d '"');
+	pathdir=$(dirname "$path")
+	echo "URL: $url"
+	echo "path: $path"
+	echo "Pathdir: $pathdir"
+	[ -d $pathdir ] && mkdir -p "$pathdir" #check if folder exists if not mkdir
+	wget -o $path $url
+done
+rm ./artifact_json
 ```
 
 Similarly, if you want to download the _latest_ artifacts of a build, replace the curl call with a URL that follows this scheme:
